@@ -1,9 +1,5 @@
 # Noupe-2api 🚀 - 一份宣言，一份蓝图，一份邀请
 
-<div align="center">
-  <img src="https://user-images.githubusercontent.com/10214336/230679957-9db19942-571a-4364-b15e-e0ec6a91753c.png" alt="Project Banner" width="600"/>
-</div>
-
 <p align="center">
   <strong>将任何 Noupe/Jotform 聊天机器人，转化为一个符合 OpenAI 标准的高性能、流式 API 接口。</strong>
   <br/>
@@ -56,26 +52,25 @@ Noupe-local/
 ```mermaid
 graph TD
     subgraph 用户侧
-        A[你的应用 / 客户端]
+        A["你的应用 / 客户端"]
     end
 
-    subgraph Noupe-2api 服务 (运行于 Docker)
-        B(Nginx:8080)
-        C{Upstream: noupe_backend}
-        D[FastAPI Worker 1]
-        E[FastAPI Worker 2]
+    subgraph "Noupe-2api 服务 (运行于 Docker)"
+        B["Nginx (端口: 8080)"]
+        C{"Upstream: noupe_backend"}
+        D["FastAPI Worker"]
     end
 
     subgraph 外部服务
-        F[Noupe/Jotform API]
+        F["Noupe/Jotform API"]
     end
 
     A -- "POST /v1/chat/completions\n(携带 API_MASTER_KEY)" --> B
-    B -- "粘性会话\n(基于 Cookie 哈希)" --> C
+    B -- "粘性会话 (基于 Cookie 哈希)" --> C
     C --> D
     D -- "携带你的 Cookie\n发送 POST 请求" --> F
     F -- "返回伪流式响应" --> D
-    D -- "处理并模拟成真流式" --> B
+    D -- "捕获答案并模拟成真流式" --> B
     B -- "SSE 流式响应" --> A
 ```
 
@@ -97,27 +92,28 @@ graph TD
 *   **为何终极 (Why it's Ultimate)**: 这种方法比根据 IP 地址分配要可靠得多。因为你的 IP 可能会变，但只要你不清空浏览器缓存，你的“身份证”(`Cookie`) 就不会变。这确保了你的对话上下文永远不会因为被分配到“不认识你”的柜员那里而丢失。
 *   **难度评级**: ★★★★☆ (4/5) - 理解 Nginx 的负载均衡策略并选择最优解，是构建高性能服务的关键。
 
-### ✅ 项目优劣势对比
+### ⚠️ 重要：使用场景与局限性
 
-| 特性 | 👍 优点 (Pros) | 👎 缺点 (Cons) |
-| :--- | :--- | :--- |
-| **通用性** | **极致灵活**：通过修改 `.env` 文件，可以接入**任何** Noupe 机器人，而非写死。 | 需要用户具备基本的抓包能力来获取凭证。 |
-| **性能** | **高性能**：基于 FastAPI 和 Uvicorn，异步非阻塞，性能卓越。Nginx 提供了强大的负载均衡和粘性会话。 | 响应速度完全依赖于上游 Noupe API 的速度。 |
-| **兼容性** | **无缝对接**：输出完全兼容 OpenAI API 格式，可直接接入任何支持 OpenAI 的客户端。 | 未实现 OpenAI 的所有参数（如 `temperature`），因为 Noupe API 本身不支持。 |
-| **部署** | **一键启动**：基于 Docker 和 Docker Compose，实现了真正的一键部署，跨平台无差异。 | 首次构建 Docker 镜像可能需要一些时间。 |
+> 💡 **哲学时刻**: 一个诚实的工具，不仅要展示它的力量，更要坦诚它的边界。
+
+*   **它能做什么 (What it does well)**:
+    *   **通用知识问答**: 对于像“西红柿炒鸡蛋怎么做？”这样的通用性问题，Noupe AI 表现出色，`Noupe-2api` 能完美地将答案传递给你。
+    *   **基于训练数据的问答**: 如果你用自己的知识库训练了 Noupe 机器人，`Noupe-2api` 可以让你通过 API 的方式访问这些专属知识。
+    *   **标准 API 集成**: 让你能够将 Noupe 机器人集成到任何支持 OpenAI API 格式的生态系统中，如各种桌面客户端、自动化流程等。
+
+*   **它不能做什么 (What are the limitations)**:
+    *   **实时网络访问与分析**: 这是**最重要**的一点。根据我们的测试，Noupe AI 模型**目前不具备实时访问外部链接（如 GitHub 仓库）并进行深度分析的能力**。当你问它关于一个具体代码仓库的问题时，它会很诚实地告诉你“抱歉，我暂时无法获取...”，如我们的测试截图所示。
+    *   **这不是 `Noupe-2api` 的 Bug**: 我们的项目是一个忠实的“信使”，它只是将 Noupe AI 的回答原封不动地传递给你。模型的内在能力局限，是 `Noupe-2api` 无法超越的。
 
 ## 🧑‍🏫 一份保姆级教程：从零到你的第一个 API 调用
 
 ### 1. 准备工作：创建你自己的 Noupe 机器人
 
-> 💡 **哲学时刻**: 在我们开始“索取”之前，我们必须先“创造”。这是第一步，也是最重要的一步。
-
-1.  访问 [<sup>1</sup>](https://www.noupe.com/)。
+1.  [访问 ](https://www.noupe.com/)。
 2.  注册并登录，然后创建一个新的 AI 代理 (Agent)。你可以训练它，给它喂养你自己的知识库。
 3.  完成创建后，进入“**获取您的代码 (Get Your Code)**”页面。你会看到类似下面的嵌入代码。**暂时不要关闭这个页面！**
 
-    <img src="https://i.imgur.com/your-agent-id-screenshot.png" alt="获取 Agent ID" width="700"/>
-    *(示例图：你需要在这个页面找到你的 Agent ID)*
+    *(在这个页面，你将能找到创建机器人后生成的 `Agent ID`)*
 
 ### 2. 核心步骤：获取你的机器人“三件套”
 
@@ -127,41 +123,22 @@ graph TD
 
 1.  **创建本地测试文件**:
     *   在你的电脑上创建一个名为 `test.html` 的文件。
-    *   将你在上一步获取的 `<script>...</script>` 嵌入代码，完整地粘贴到这个 HTML 文件中。你的文件看起来应该像这样：
-        ```html
-        <!DOCTYPE html>
-        <html>
-        <head><title>My Noupe Test</title></head>
-        <body>
-            <h1>My Bot Test Page</h1>
-            <!-- 把你的嵌入代码粘贴在这里 -->
-            <script src='https://www.noupe.com/embed/你的AGENT_ID.js'></script>
-        </body>
-        </html>
-        ```
-
+    *   将你在上一步获取的 `<script>...</script>` 嵌入代码，完整地粘贴到这个 HTML 文件中。
 2.  **开始“抓包”**:
     *   用 Chrome 或 Edge 浏览器打开你刚刚创建的 `test.html` 文件。
     *   按下 `F12` 键，打开“开发者工具”。
     *   切换到“**网络 (Network)**”标签页。
     *   在页面右下角出现的聊天框里，**随便发送一条消息**，比如“你好”。
-
 3.  **定位并复制**:
     *   在“网络”标签的请求列表中，你会看到一个新的请求出现。它的名称通常以 `POST` 方法，并指向 `https://www.noupe.com/API/ai-agent/...`。
     *   **找到你的 `CHAT_ID`**: 在这个请求的 URL 中，仔细查找 `/chats/` 后面的那串字符，它就是你的 `CHAT_ID`！
     *   **复制 cURL**: 右键点击这个请求，选择 **复制 (Copy)** > **以 cURL (bash) 格式复制 (Copy as cURL (bash))**。
-
-    <img src="https://i.imgur.com/your-curl-screenshot.png" alt="抓取 cURL" width="700"/>
-    *(示例图：右键点击核心请求，复制 cURL)*
-
 4.  **提取 `Cookie`**:
-    *   将复制的 cURL 命令粘贴到任何文本编辑器（如记事本、VS Code）中。
+    *   将复制的 cURL 命令粘贴到任何文本编辑器中。
     *   在其中找到 `-H 'cookie: ...'` 或 `--cookie '...'` 的部分。
     *   **完整地**复制引号内的所有内容。这就是你的 `NOUPE_COOKIE`。
 
 ### 3. 一键部署：让魔法发生
-
-> 💡 **开源精神**: 我们提供工具，你只需点燃引擎。
 
 #### 方案一：Docker 一键部署 (推荐)
 
@@ -173,43 +150,12 @@ graph TD
 2.  **配置你的凭证**:
     *   复制 `.env.example` 文件为 `.env`。
     *   打开 `.env` 文件，将你刚刚获取的 `AGENT_ID`, `CHAT_ID`, 和 `NOUPE_COOKIE` 填入其中。
-    *   （可选）设置一个你自己的 `API_MASTER_KEY` 和 `NGINX_PORT`。
 3.  **启动！**:
     ```bash
     docker-compose up -d --build
     ```
-    等待 Docker 完成构建和启动。现在，你的 API 已经在 `http://localhost:8080` (或你设置的端口) 上运行了！
+    现在，你的 API 已经在 `http://localhost:8080` (或你在 `.env` 中设置的端口) 上运行了！
 
-#### 方案二：Hugging Face Spaces 一键部署 (懒人福音)
-
-> 🌍 让世界成为你的服务器！
-
-![Deploy to Hugging Face Spaces [<sup>2</sup>](https://hf.co/datasets/huggingface/badges/raw/main/deploy-to-spaces-lg.svg)](https://huggingface.co/new-repo?template=lzA6/Noupe-2api)
-
-点击上面的按钮，Hugging Face 会自动为你克隆这个仓库。你只需要在 `Secrets` 中添加你的 `AGENT_ID`, `CHAT_ID`, 和 `NOUPE_COOKIE`，然后点击“部署”，一切就都搞定了！
-
-### 4. 验证与使用：与你的 AI 对话
-
-现在，你可以使用任何支持 OpenAI API 格式的客户端来与你的 `Noupe-2api` 对话了。
-
-*   **API 地址**: `http://localhost:8080` (或你的服务器地址)
-*   **API 密钥**: 你在 `.env` 中设置的 `API_MASTER_KEY`
-*   **模型名称**: `noupe-chat-model`
-
-这是一个使用 `curl` 的例子：
-
-```bash
-curl http://localhost:8080/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer你的API_MASTER_KEY" \
-  -d '{
-    "model": "noupe-chat-model",
-    "messages": [
-      {"role": "user", "content": "西红柿炒鸡蛋怎么做？"}
-    ],
-    "stream": true
-  }'
-```
 
 ## 🔭 未来展望：我们共同的星辰大海
 
@@ -221,7 +167,7 @@ curl http://localhost:8080/v1/chat/completions \
 *   **[待实现] 错误处理增强**: 更精细地解析上游 API 可能返回的错误信息，并以 OpenAI 兼容的格式返回给客户端。
 *   **[待优化] 配置热重载**: 研究如何在不重启 Docker 容器的情况下，动态更新 `.env` 中的 `Cookie` 等配置。
 
-###🌌 长期愿景 (Long-term Vision)
+### 🌌 长期愿景 (Long-term Vision)
 
 *   **“万物2api” 框架**: 将 `Noupe-2api` 的核心架构抽象成一个更通用的 `*-2api` 框架。未来，适配一个新的网站可能只需要编写一个几十行的 `Provider` 子类，真正实现“万物皆可 API”。
 *   **可视化配置界面**: 创建一个简单的 Web UI，让非开发者用户也能通过点击和粘贴，轻松配置和部署自己的 `2api` 服务。
@@ -233,9 +179,9 @@ curl http://localhost:8080/v1/chat/completions \
 
 `Noupe-2api` 不属于我，它属于每一个信仰开放、热爱创造的你。我们邀请你，无论你是代码大神，还是刚刚入门的小白，都加入到这场激动人心的“破壁”之旅中来。
 
-*   **发现一个 Bug？** 👉 提交一个 Issue [<sup>3</sup>](https://github.com/lzA6/Noupe-2api/issues)！
-*   **有一个绝妙的点子？** 👉 开启一个 Discussion [<sup>4</sup>](https://github.com/lzA6/Noupe-2api/discussions)！
-*   **修复了一个问题或实现了一个新功能？** 👉 提交一个 Pull Request [<sup>5</sup>](https://github.com/lzA6/Noupe-2api/pulls)！
+*   **发现一个 Bug？**  [👉 提交一个 Issue](https://github.com/lzA6/Noupe-2api/issues)！
+*   **有一个绝妙的点子？**  [👉 开启一个 Discussion](https://github.com/lzA6/Noupe-2api/discussions)！
+*   **修复了一个问题或实现了一个新功能？**  [👉 提交一个 Pull Request](https://github.com/lzA6/Noupe-2api/pulls)！
 
 **你的每一次贡献，无论大小，都在为这个更开放、更互联的世界添砖加瓦。**
 
